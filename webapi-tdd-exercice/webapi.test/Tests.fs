@@ -7,7 +7,7 @@ open System.Net.Http.Json
 open FluentAssertions
 open System.Net
 open Program.webapi
-
+open System.Linq
 
 open Dapper.FSharp.SQLite
 open System.Collections
@@ -32,16 +32,21 @@ let ``Should return 200 ok when send product`` () =
 [<Fact>]
 let ``Should add to storage when has new product`` () =
     let httpClient = create().CreateClient()
+
     task {
+        do! init connectionString
+
         let! (response: Http.HttpResponseMessage) = httpClient.PostAsync(
             "/products",
-            JsonContent.Create({ Name = "Souris"; Price = 55})) 
+            JsonContent.Create({ Name = "Souris"; Price = 55}))
 
-        let! productsFromDb =
+        response.StatusCode.Should().Be(HttpStatusCode.OK, "Request should pass") |> ignore
+
+        let! fromDb =
             select {
                 for p in productTable do
-                selectAll
+                where (p.Name = "Souris")
             } |> connectionString.SelectAsync<Product>
 
-        productsFromDb.GetEnumerator().Current.Name.Should().Be("Souris", "Last input was Souris") |> ignore
-    }
+        fromDb.ElementAt(0).Name.Should().Be("Souris", "we insert souris") |> ignore
+    } 

@@ -4,6 +4,7 @@ open Microsoft.AspNetCore.Builder
 open System
 open Microsoft.AspNetCore.Http
 open Apis
+open DapperExtensions
 
 open Dapper.FSharp.SQLite
 open System.Data
@@ -17,8 +18,25 @@ Dapper.FSharp.SQLite.OptionTypes.register()
 
 // let connectionString: IDbConnection = "Data Source=:memory:;Version=3;New=True;"
 let connectionString: IDbConnection =  new SQLite.SQLiteConnection("Data Source=:memory:;Version=3;New=True;")
+
 // let productTable = table<Product>
-let productTable = table'<Product> "products"
+let productTable = table'<Product> "Products"
+
+
+let init (conn:IDbConnection) =
+    task {
+        do! "DROP TABLE IF EXISTS Products" |> conn.ExecuteIgnore
+        do!
+            """
+            CREATE TABLE Products (
+                Name TEXT PRIMARY KEY,
+                PRICE INTEGER
+            )
+            """
+            |> conn.ExecuteIgnore
+        return ()
+    }
+
 
 let postProductInDB = 
     Func<IResult>(fun () -> 
@@ -32,6 +50,7 @@ let postProductInDB =
 
 let builder = WebApplication.CreateBuilder()
 let app = builder.Build()
+
 
 app.MapGet("/", helloWorld) |> ignore
 app.MapPost("/products", postProductInDB) |> ignore
