@@ -14,10 +14,6 @@ open System.Collections
 
 let create () = (new WebApplicationFactory<Program>()).Server
 
-type Product = {
-    Name: string
-    Price: int
-}
 
 [<Fact>]
 let ``Should return 200 ok when send product`` () =
@@ -25,7 +21,7 @@ let ``Should return 200 ok when send product`` () =
     task {
         let! (response: Http.HttpResponseMessage) = httpClient.PostAsync(
             "/products",
-            JsonContent.Create({ Name = "François"; Price = 12})) 
+            JsonContent.Create({ Id= Guid.NewGuid().ToString(); Name = "François"; Price = 12})) 
         response.StatusCode.Should().Be(HttpStatusCode.OK, "Request should pass") |> ignore
     }
 
@@ -36,17 +32,19 @@ let ``Should add to storage when has new product`` () =
     task {
         do! init connectionString
 
+        let newGuid = Guid.NewGuid().ToString()
+        let personToInsert = { Id = newGuid; Name = "John"; Price = 55 }
+
         let! (response: Http.HttpResponseMessage) = httpClient.PostAsync(
             "/products",
-            JsonContent.Create({ Name = "Souris"; Price = 55}))
+            JsonContent.Create(personToInsert))
 
         response.StatusCode.Should().Be(HttpStatusCode.OK, "Request should pass") |> ignore
-
         let! fromDb =
             select {
                 for p in productTable do
-                where (p.Name = "Souris")
+                where (p.Id = newGuid)
             } |> connectionString.SelectAsync<Product>
 
-        fromDb.ElementAt(0).Name.Should().Be("Souris", "we insert souris") |> ignore
+        (Seq.head fromDb).Should().Be(personToInsert, "we insert john") |> ignore
     } 

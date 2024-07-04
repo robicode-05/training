@@ -5,46 +5,56 @@ open System
 open Microsoft.AspNetCore.Http
 open Apis
 open DapperExtensions
-
 open Dapper.FSharp.SQLite
 open System.Data
 
 type Product = {
+    Id: string
     Name: string
     Price: int
 }
 
-Dapper.FSharp.SQLite.OptionTypes.register()
+
 
 // let connectionString: IDbConnection = "Data Source=:memory:;Version=3;New=True;"
-let connectionString: IDbConnection =  new SQLite.SQLiteConnection("Data Source=:memory:;Version=3;New=True;")
+//let connectionString: IDbConnection =  new SQLite.SQLiteConnection("Data Source=:memory:;Version=3;New=True;")
+let connectionString: IDbConnection =  new SQLite.SQLiteConnection("Data Source=IntegrationTests.sqlite")
 
 // let productTable = table<Product>
 let productTable = table'<Product> "Products"
 
 
 let init (conn:IDbConnection) =
+
     task {
+        conn.Open()
         do! "DROP TABLE IF EXISTS Products" |> conn.ExecuteIgnore
         do!
             """
-            CREATE TABLE Products (
-                Name TEXT PRIMARY KEY,
-                PRICE INTEGER
+            CREATE TABLE [Products] (
+                [Id] [TEXT] NOT NULL PRIMARY KEY,
+                [Name] [TEXT] NOT NULL,
+                [Price] [INTEGER] NOT NULL
             )
             """
             |> conn.ExecuteIgnore
         return ()
+        Dapper.FSharp.SQLite.OptionTypes.register()
     }
+   
+
 
 
 let postProductInDB = 
-    Func<IResult>(fun () -> 
-        insert {
-            into productTable
-            value { Name = "François"; Price = 12 }
-        } |> connectionString.InsertAsync
-        |> ignore
+    Func<Product, IResult>(fun (product) -> 
+        task {
+            let! a =
+                insert {
+                    into productTable
+                    value product
+                } |> connectionString.InsertOrReplaceAsync
+            a |> ignore
+        } |> ignore
         Results.Ok()
     )
 
