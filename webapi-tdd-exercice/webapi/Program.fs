@@ -47,13 +47,13 @@ let init (conn:IDbConnection) =
 
 let postProductInDB = 
     Func<Product, IResult>(fun (product) -> 
-        task {
-            let! a =
-                insert {
-                    into productTable
-                    value product
-                } |> connectionString.InsertOrReplaceAsync
-            a |> ignore
+        task {           
+            insert {
+                into productTable
+                value product
+            }
+            |> connectionString.InsertAsync
+            |> ignore
         } |> ignore
         Results.Ok()
     )
